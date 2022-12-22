@@ -1,0 +1,120 @@
+---
+
+
+- set_fact:
+    mem_available: "{{(ansible_facts.memory_mb.real.free+ansible_facts.memory_mb.swap.free | default (0))}}"
+- name: Fixing swap for VPS
+  include_role:
+    name: geerlingguy.swap
+  vars:
+    swap_file_size_mb: '{{ansible_facts.memory_mb.swap.free | default (0) + 1024}}'
+  when: mem_available|int < 768
+- include_role:
+    name: geerlingguy.docker
+  vars:
+    docker_edition: 'ce'
+    docker_install_compose: true
+    docker_install_compose_plugin: false
+#
+
+- apt:
+    name: [ wireguard, python3-pip, curl, jq, python-is-python3 ]
+    state: present
+    update_cache: yes
+- pip:
+    name: docker-compose
+    state: present
+
+- set_fact:
+    firezone_subnet="{{vpn_subnet|ansible.utils.ipsubnet(18,1) | ansible.utils.ipsubnet()}}"
+    client_subnet="{{vpn_subnet|ansible.utils.ipsubnet(18,0) | ansible.utils.ipsubnet()}}"
+
+- set_fact:
+    firezone_mgr_ip="{{firezone_subnet|ansible.utils.nthhost(3)}}"
+
+- set_fact:
+    firezone_google_auth:
+      google:
+        discovery_document_uri: "https://accounts.google.com/.well-known/openid-configuration"
+        client_id: "{{google_oidc.client_id}}"
+        client_secret: "{{google_oidc.client_secret}}"
+        redirect_uri: "https://{{server_url}}/auth/oidc/google/callback"
+        response_type: "code"
+        scope: "openid email profile"
+        label: "Google"
+  when: google_oidc is defined
+
+- file:
+    path: "{{firezone_dir}}"
+    state: directory
+
+- stat:
+    path: "{{firezone_dir}}/.env"
+  register: env_file
+
+- community.general.docker_compose:
+    project_name: "firezone"
+    project_src: "{{firezone_dir}}/"
+    state: absent
+  when: env_file.stat.exists
+
+- template:
+    dest: "{{firezone_dir}}/.env"
+    src: "files/.env.j2"
+  when: (not env_file.stat.exists) or firezone_redeploy == true
+
+- file:
+    path: "{{firezone_dir}}/postgres-data"
+    state: absent
+  when: (not env_file.stat.exists) or firezone_redeploy == true
+- template:
+    dest: "{{firezone_dir}}/docker-compose.yml"
+    src: "files/docker-compose.yml.j2"
+- copy:
+    dest: "{{firezone_dir}}/"
+    src: "files/netlog"
+
+
+- community.general.docker_compose:
+    project_name: "firezone"
+    project_src: "{{firezone_dir}}/"
+    state: present
+    restarted: true
+  register: stack_info
+
+- docker_container_info:
+    name: "{{(stack_info.services['postgres']).keys()|first}}"
+
+  register: container_info
+  until: container_info.container.State.Health.Status=="healthy"
+  retries: 20
+  delay: 5
+
+- community.docker.docker_container_exec:
+    container: "{{(stack_info.services['firezone']).keys()|first}}"
+    command: "/app/bin/create-or-reset-admin"
+
+- block:
+  - fz_gen_oidc:
+      oidc: "{{firezone_oidc}}"
+    register: fz_config
+
+
+  - community.docker.docker_container_exec:
+      container: "{{(stack_info.services['postgres']).keys()|first}}"
+      command: >
+        psql -h localhost -U postgres firezone -c "
+        truncate configurations;
+        insert into configurations (id,inserted_at,updated_at, openid_connect_providers)
+        values
+        (uuid_in(md5(random()::text || random()::text)::cstring), current_timestamp,
+        current_timestamp, convert_from(decode('{{fz_config.result}}','base64'),'UTF8')::jsonb)
+        "
+  when: firezone_oidc is defined
+
+- community.general.docker_compose:
+    project_name: "firezone"
+    project_src: "{{firezone_dir}}/"
+    state: present
+    restarted: true
+  register: stack_info

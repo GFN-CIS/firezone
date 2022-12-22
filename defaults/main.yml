@@ -1,0 +1,10 @@
+---
+# Firezone admin email
+firezone_admin: "no@email.com"
+# server address (must be FQDN, no IPs allowed)
+server_url: "{{ansible_host}}"
+# Firezone working subnet
+vpn_subnet: "10.8.0.0/16"
+# Firezone server IP
+
+firezone_dir: "/opt/firezone"

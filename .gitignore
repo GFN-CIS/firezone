@@ -1,0 +1,8 @@
+/venv
+/.idea
+/test.yml
+/inventory.yml
+/dev/roles/
+/dev/inventory.yml
+/dev/
+/playbooks/dev/

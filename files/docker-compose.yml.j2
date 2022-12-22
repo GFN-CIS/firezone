@@ -1,0 +1,112 @@
+version: '3.7'
+
+services:
+  caddy:
+    restart: always
+    image: caddy:2
+    volumes:
+      - ${FZ_INSTALL_DIR:-.}/caddy:/data/caddy
+    # See Caddy's documentation for customizing this line
+    # https://caddyserver.com/docs/quick-starts/reverse-proxy
+    command:
+      - /bin/sh
+      - -c
+      - |
+          cat <<EOF > /etc/caddy/Caddyfile && cd /etc/caddy/ && caddy fmt --overwrite  && caddy run --config /etc/caddy/Caddyfile
+
+          ${EXTERNAL_URL:?err} {
+            log
+            reverse_proxy * ${FZ_MGR_IP}:13000
+          }
+          EOF
+    network_mode: "host"
+    healthcheck:
+      test:  ["CMD-SHELL", "wget -q http://127.0.0.1:2019/reverse_proxy/upstreams -O /dev/null"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      - firezone
+
+  firezone:
+    restart: always
+    image: firezone/firezone
+    ports:
+      - 51820:51820/udp
+    env_file:
+      # This should contain a list of env vars for configuring Firezone.
+      # See https://docs.firezone.dev/reference/env-vars for more info.
+      - ${FZ_INSTALL_DIR:-.}/.env
+    volumes:
+      # IMPORTANT: Persists WireGuard private key and other data. If
+      # /var/firezone/private_key exists when Firezone starts, it is
+      # used as the WireGuard private. Otherwise, one is generated.
+      - ${FZ_INSTALL_DIR:-.}/firezone:/var/firezone
+    cap_add:
+      # Needed for WireGuard and firewall support.
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      # Needed for masquerading and NAT.
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+    depends_on:
+      - postgres
+    networks:
+      firezone-network:
+        ipv4_address: ${FZ_MGR_IP:?err}
+    healthcheck:
+      test:  ["CMD-SHELL", "wget -q http://127.0.0.1:13000/ -O /dev/null"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+  postgres:
+    restart: always
+    image: postgres:15
+    volumes:
+      - ${FZ_INSTALL_DIR:-.}/postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-firezone}
+      POSTGRES_USER: ${DATABASE_USER:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?err}
+    healthcheck:
+      test: [ "CMD-SHELL", "/usr/bin/pg_isready -U$$POSTGRES_USER" ]
+      interval: 60s
+      timeout: 60s
+      retries: 50
+      start_period: 10s
+    networks:
+      - firezone-network
+
+  netlog:
+    restart: always
+    privileged: true
+    depends_on:
+      - firezone
+    build:
+      context: ./netlog
+    pid: "service:firezone"
+    cap_add:
+      - NET_ADMIN
+  autoheal:
+    restart: always
+    image: willfarrell/autoheal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - "AUTOHEAL_CONTAINER_LABEL=all"
+
+
+# Postgres needs a named volume to prevent perms issues on non-linux platforms
+#volumes:
+#  postgres-data: ${FZ_INSTALL_DIR:-.}/postgres-data
+
+networks:
+  firezone-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${FZ_SUBNET:?err}
