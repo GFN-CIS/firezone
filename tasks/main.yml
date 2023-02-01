@@ -104,7 +104,7 @@
       container: "{{(stack_info.services['postgres']).keys()|first}}"
       command: >
         psql -h localhost -U postgres firezone -c "
-        truncate configurations;
+#        truncate configurations;
         insert into configurations (id,inserted_at,updated_at, openid_connect_providers)
         values
         (uuid_in(md5(random()::text || random()::text)::cstring), current_timestamp,
