@@ -36,7 +36,8 @@ def main():
         supports_check_mode=True)
     r = dict()
     for key, value in ansible.params['oidc'].items():
-        p = {"client_id": value['client_id'], "client_secret": value['client_secret'],
+        p = {"id": "6l5RwN3R",
+             "client_id": value['client_id'], "client_secret": value['client_secret'],
              'discovery_document_uri': value.get(
                  'discovery_document_uri', 'https://accounts.google.com/.well-known/openid-configuration'),
              'redirect_uri': value.get('redirect_uri', None),
