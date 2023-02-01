@@ -98,18 +98,22 @@
   - fz_gen_oidc:
       oidc: "{{firezone_oidc}}"
     register: fz_config
-
-
-  - community.docker.docker_container_exec:
-      container: "{{(stack_info.services['postgres']).keys()|first}}"
-      command: >
+  - set_fact:
+      pg_query: >
         psql -h localhost -U postgres firezone -c "
-#        truncate configurations;
         insert into configurations (id,inserted_at,updated_at, openid_connect_providers)
         values
         (uuid_in(md5(random()::text || random()::text)::cstring), current_timestamp,
         current_timestamp, convert_from(decode('{{fz_config.result}}','base64'),'UTF8')::jsonb)
         "
+#        truncate configurations;
+  - debug:
+      msg: "{{pg_query}}"
+  - debug:
+      msg: "{{fz_config}}"
+  - community.docker.docker_container_exec:
+      container: "{{(stack_info.services['postgres']).keys()|first}}"
+      command: "{{pg_query}}"
   when: firezone_oidc is defined
 
 - community.general.docker_compose:
