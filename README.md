@@ -29,7 +29,7 @@ Example Playbook
 
 ##### requirements.yml
 
-    - src: https://github.com/GFNRussia/firezone
+    - src: https://github.com/GFN-CIS/firezone
 
 ##### ansible-playbook.yml
 

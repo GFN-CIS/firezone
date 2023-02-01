@@ -16,10 +16,14 @@ services:
 
           ${EXTERNAL_URL:?err} {
             log
-            reverse_proxy * ${FZ_MGR_IP}:13000
+            reverse_proxy * firezone:13000
           }
           EOF
-    network_mode: "host"
+    networks:
+      firezone-network:
+    ports:
+      - 80:80
+      - 443:443
     healthcheck:
       test:  ["CMD-SHELL", "wget -q http://127.0.0.1:2019/reverse_proxy/upstreams -O /dev/null"]
       interval: 60s
@@ -33,7 +37,7 @@ services:
     restart: always
     image: firezone/firezone
     ports:
-      - 51820:51820/udp
+      - ${FZ_PORT:-51820}:51820/udp
     env_file:
       # This should contain a list of env vars for configuring Firezone.
       # See https://docs.firezone.dev/reference/env-vars for more info.
@@ -56,7 +60,6 @@ services:
       - postgres
     networks:
       firezone-network:
-        ipv4_address: ${FZ_MGR_IP:?err}
     healthcheck:
       test:  ["CMD-SHELL", "wget -q http://127.0.0.1:13000/ -O /dev/null"]
       interval: 60s
@@ -81,13 +84,13 @@ services:
     networks:
       - firezone-network
 
-  netlog:
+  conntrack-log:
     restart: always
     privileged: true
     depends_on:
       - firezone
     build:
-      context: ./netlog
+      context: ./conntrack-log
     pid: "service:firezone"
     cap_add:
       - NET_ADMIN

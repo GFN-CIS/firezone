@@ -1,6 +1,4 @@
 ---
-
-
 - set_fact:
     mem_available: "{{(ansible_facts.memory_mb.real.free+ansible_facts.memory_mb.swap.free | default (0))}}"
 - name: Fixing swap for VPS
@@ -53,7 +51,7 @@
   register: env_file
 
 - community.general.docker_compose:
-    project_name: "firezone"
+#  project_name: "firezone"
     project_src: "{{firezone_dir}}/"
     state: absent
   when: env_file.stat.exists
@@ -61,23 +59,25 @@
 - template:
     dest: "{{firezone_dir}}/.env"
     src: "files/.env.j2"
-  when: (not env_file.stat.exists) or firezone_redeploy == true
+  when: (not env_file.stat.exists) or firezone_redeploy|default ('false') == true
 
 - file:
     path: "{{firezone_dir}}/postgres-data"
     state: absent
-  when: (not env_file.stat.exists) or firezone_redeploy == true
+  when: (not env_file.stat.exists) or firezone_redeploy|default ('false') == true
 - template:
     dest: "{{firezone_dir}}/docker-compose.yml"
     src: "files/docker-compose.yml.j2"
 - copy:
     dest: "{{firezone_dir}}/"
-    src: "files/netlog"
+    src: "files/conntrack-log"
 
 
 - community.general.docker_compose:
-    project_name: "firezone"
+#    project_name: "firezone"
     project_src: "{{firezone_dir}}/"
+    build: yes
+    pull: yes
     state: present
     restarted: true
   register: stack_info
@@ -113,7 +113,7 @@
   when: firezone_oidc is defined
 
 - community.general.docker_compose:
-    project_name: "firezone"
+#    project_name: "firezone"
     project_src: "{{firezone_dir}}/"
     state: present
     restarted: true
