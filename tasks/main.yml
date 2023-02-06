@@ -1,4 +1,5 @@
 ---
+
 - set_fact:
     mem_available: "{{(ansible_facts.memory_mb.real.free+ansible_facts.memory_mb.swap.free | default (0))}}"
 - name: Fixing swap for VPS
@@ -18,29 +19,20 @@
 - apt:
     name: [ wireguard, python3-pip, curl, jq, python-is-python3 ]
     state: present
-    update_cache: yes
+
 - pip:
     name: docker-compose
     state: present
 
 - set_fact:
-    firezone_subnet="{{vpn_subnet|ansible.utils.ipsubnet(18,1) | ansible.utils.ipsubnet()}}"
-    client_subnet="{{vpn_subnet|ansible.utils.ipsubnet(18,0) | ansible.utils.ipsubnet()}}"
+    #split subnets in two: client subnet and firezone docker subnet
+    subnet_prefix: "{{vpn_subnet|ansible.utils.ipaddr('prefix')}}"
+- set_fact:
+    firezone_subnet: "{{vpn_subnet|ansible.utils.ipsubnet(subnet_prefix|int+2,1) | ansible.utils.ipsubnet()}}"
+    client_subnet: "{{vpn_subnet|ansible.utils.ipsubnet(subnet_prefix|int+2,0) | ansible.utils.ipsubnet()}}"
 
 - set_fact:
     firezone_mgr_ip="{{firezone_subnet|ansible.utils.nthhost(3)}}"
-
-- set_fact:
-    firezone_google_auth:
-      google:
-        discovery_document_uri: "https://accounts.google.com/.well-known/openid-configuration"
-        client_id: "{{google_oidc.client_id}}"
-        client_secret: "{{google_oidc.client_secret}}"
-        redirect_uri: "https://{{server_url}}/auth/oidc/google/callback"
-        response_type: "code"
-        scope: "openid email profile"
-        label: "Google"
-  when: google_oidc is defined
 
 - file:
     path: "{{firezone_dir}}"
@@ -51,7 +43,7 @@
   register: env_file
 
 - community.general.docker_compose:
-#  project_name: "firezone"
+    #  project_name: "firezone"
     project_src: "{{firezone_dir}}/"
     state: absent
   when: env_file.stat.exists
@@ -74,7 +66,7 @@
 
 
 - community.general.docker_compose:
-#    project_name: "firezone"
+
     project_src: "{{firezone_dir}}/"
     build: yes
     pull: yes
@@ -83,42 +75,94 @@
   register: stack_info
 
 - docker_container_info:
-    name: "{{(stack_info.services['postgres']).keys()|first}}"
+    name: "{{(stack_info.services['firezone']).keys()|first}}"
 
   register: container_info
   until: container_info.container.State.Health.Status=="healthy"
-  retries: 20
+  retries: 40
   delay: 5
+  name: Waiting for stack to up
 
 - community.docker.docker_container_exec:
     container: "{{(stack_info.services['firezone']).keys()|first}}"
     command: "/app/bin/create-or-reset-admin"
 
+- name: "Retrieve API token"
+  community.docker.docker_container_exec:
+    container: "{{(stack_info.services['firezone']).keys()|first}}"
+    command: "bin/create-api-token"
+  register: token_result
+- set_fact: api_token="{{token_result.stdout_lines[0]}}"
+
+- uri:
+    url: "https://{{server_url}}/v0/configuration"
+    method: GET
+    headers:
+      Authorization: "Bearer {{api_token}}"
+      Content-Type: application/json
+  register: config
+  name: "Check configuration is retrievable"
+- copy: content="{{api_token}}" dest="{{firezone_dir}}/api-token"
 - block:
-  - fz_gen_oidc:
-      oidc: "{{google_oidc}}"
-    register: fz_config
-  - set_fact:
-      pg_query: >
-        psql -h localhost -U postgres firezone -c "
-        truncate configurations;
-        insert into configurations (id,inserted_at,updated_at, openid_connect_providers)
-        values
-        (uuid_in(md5(random()::text || random()::text)::cstring), current_timestamp,
-        current_timestamp, convert_from(decode('{{fz_config.result}}','base64'),'UTF8')::jsonb)
-        "
-  - debug:
-      msg: "{{pg_query}}"
-  - debug:
-      msg: "{{fz_config}}"
-  - community.docker.docker_container_exec:
-      container: "{{(stack_info.services['postgres']).keys()|first}}"
-      command: "{{pg_query}}"
-  when: google_oidc is defined
+
+    - set_fact:
+        oidc_configs: [ ]
+    - set_fact:
+        oidc_configs: >
+          {{oidc_configs + [
+            {
+              'name': item.key,
+              'discovery_document_uri': item.value.discovery_document_uri| default ('https://accounts.google.com/.well-known/openid-configuration'),
+              'client_id': item.value.client_id,
+              'client_secret': item.value.client_secret,
+              'redirect_uri': item.value.redirect_uri| default ('https://'+server_url+'/auth/oidc/'+item.key+'/callback'),
+              'response_type': item.value.response_type| default ('code'),
+              'scope': item.value.scope| default ('openid email profile'),
+              'label': item.key,
+              'id': item.key,
+              'auto_create_users': true
+            }
+          ]}}
+      loop: "{{fz_oidc | dict2items}}"
+    - set_fact:
+        openid:
+          openid_connect_providers: "{{oidc_configs}}"
+
+    - set_fact:
+        configuration:
+          configuration: "{{config.json.data|ansible.utils.remove_keys(target=['openid_connect_providers'])| combine(openid)}}"
+    - set_fact:
+        config: "{{configuration}}"
+    - name: "Redirect uris:"
+      debug:
+        msg: "{{item.redirect_uri}}"
+      loop: "{{oidc_configs}}"
+  when: fz_oidc is defined
+- set_fact:
+    config_logo:
+      configuration: "{{config.configuration|ansible.utils.remove_keys(target=['logo'])| combine({'logo': {'url':'https://'+server_url+'/images/logo-text.svg','data':None, 'type':None}})}}"
+- name: Set OIDC configuration
+  uri:
+    url: "https://{{server_url}}/v0/configuration"
+    method: PATCH
+    headers:
+      Authorization: "Bearer {{api_token}}"
+      Content-Type: application/json
+    body_format: json
+    body: "{{config_logo}}"
 
 - community.general.docker_compose:
-#    project_name: "firezone"
     project_src: "{{firezone_dir}}/"
     state: present
     restarted: true
   register: stack_info
+  name: Restarting stack
+
+- docker_container_info:
+    name: "{{(stack_info.services['firezone']).keys()|first}}"
+
+  register: container_info
+  until: container_info.container.State.Health.Status=="healthy"
+  retries: 40
+  delay: 5
+  name: Waiting for stack to up

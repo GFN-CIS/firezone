@@ -1,10 +1,9 @@
 ---
 # Firezone admin email
-firezone_admin: "no@email.com"
+firezone_admin: "fz-admin@{{server_url }}"
 # server address (must be FQDN, no IPs allowed)
-server_url: "{{ansible_host}}"
 # Firezone working subnet
-vpn_subnet: "10.8.0.0/16"
-# Firezone server IP
-
+host_salt: "{{ server_url | community.general.crc32 | string }}"
+vpn_subnet: "{{[10,192,172][(host_salt[0:2]|int (base=16) % 3)]}}.{{host_salt[2:4]|int(base=16)}}.{{host_salt[4:6]|int(base=16)}}.0/20"
+wireguard_port: 51620
 firezone_dir: "/opt/firezone"
