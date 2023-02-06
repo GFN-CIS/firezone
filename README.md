@@ -10,6 +10,7 @@ Requirements
 When using OIDC with Google, the redirect url must be set to the following:
 
 ```https://SERVER_FQDN/auth/oidc/google/callback```
+The redirect urls will be out in the debug log, or on the firezone configuration page after the install 
 
 Role Variables
 --------------
