@@ -10,20 +10,20 @@ Requirements
 When using OIDC with Google, the redirect url must be set to the following:
 
 ```https://SERVER_FQDN/auth/oidc/google/callback```
-The redirect urls will be out in the debug log, or on the firezone configuration page after the install 
+The redirect urls will be out in the debug log, or on the firezone configuration page after the install
 
 Role Variables
 --------------
 
-| Variable                  | Required | Default                   | Choices                                                                                                                      | Comments                                                                                   |
-|---------------------------|----------|---------------------------|------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| server_url                | yes      |                           | FQDN                                                                                                                         | The domain where FireZone site will be installed and endpoint adress to connect. FQDN only |
-| google_oidc.client_id     | no       |                           | The Client ID for [Google OIDC](https://docs.firezone.dev/authenticate/google) if you want "Login with Google" functionality |
-| google_oidc.client_secret | no       |                           | The Secret for Google OIDC if you want "Login with Google" functionality                                                     |
-| firezone_redeploy         | no       | false                     | Whether to reinstall firezone even if config unchanged and no updates available                                              |
-| vpn_subnet                | no       | 10.##.0.0/16              | The firezone internal subnet . The third octet is derived from server_url                                                    |
-| admin                     | no       | fz-admin@{{ansible_host}} | The admin username                                                                                                           |
-| wireguard_port            | no       | 51620                     | The wireguard port                                                                                                           |
+| Variable                      | Required | Default                   | Choices                                                                                                                      | Comments                                                                                   |
+|-------------------------------|----------|---------------------------|------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
+| server_url                    | yes      |                           | FQDN                                                                                                                         | The domain where FireZone site will be installed and endpoint adress to connect. FQDN only |
+| fz_oidcs.google.client_id     | no       |                           | The Client ID for [Google OIDC](https://docs.firezone.dev/authenticate/google) if you want "Login with Google" functionality |
+| fz_oidcs.google.client_secret | no       |                           | The Secret for Google OIDC if you want "Login with Google" functionality                                                     |
+| firezone_redeploy             | no       | false                     | Whether to reinstall firezone even if config unchanged and no updates available                                              |
+| vpn_subnet                    | no       | 10.##.0.0/16              | The firezone internal subnet . The third octet is derived from server_url                                                    |
+| admin                         | no       | fz-admin@{{ansible_host}} | The admin username                                                                                                           |
+| wireguard_port                | no       | 51620                     | The wireguard port                                                                                                           |
 
 Dependencies
 ------------
