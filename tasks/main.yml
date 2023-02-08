@@ -64,20 +64,19 @@
     dest: "{{firezone_dir}}/"
     src: "files/conntrack-log"
 
+- block:
+  - community.general.docker_compose:
+      project_src: "{{firezone_dir}}/"
+      build: yes
+      pull: yes
+      state: present
+      restarted: true
+    register: stack_info
+    failed_when: False
 
-- community.general.docker_compose:
-
-    project_src: "{{firezone_dir}}/"
-    build: yes
-    pull: yes
-    state: present
-    restarted: true
-  register: stack_info
-
-- docker_container_info:
-    name: "{{(stack_info.services['firezone']).keys()|first}}"
-
-  register: container_info
+  - docker_container_info:
+      name: "{{(stack_info.services['firezone']).keys()|first}}"
+    register: container_info
   until: container_info.container.State.Health.Status=="healthy"
   retries: 40
   delay: 5
