@@ -1,6 +1,6 @@
 ---
 # Firezone admin email
-firezone_admin: "fz-admin@{{server_url }}"
+firezone_admin: "fz-admin@{{server_url}}"
 # server address (must be FQDN, no IPs allowed)
 # Firezone working subnet
 host_salt: "{{ server_url | community.general.crc32 | string }}"

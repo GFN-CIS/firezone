@@ -41,7 +41,5 @@ galaxy_info:
   galaxy_tags: [ ]
 
   dependencies:
-    - src: git+https://github.com/GFN-CIS/letsencrypt-renewer.git
-      name: letsencrypt-renewer
     - src: geerlingguy.swap
     - src: geerlingguy.docker

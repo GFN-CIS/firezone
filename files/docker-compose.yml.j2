@@ -37,7 +37,7 @@ services:
     restart: always
     image: firezone/firezone
     ports:
-      - ${FZ_PORT:-51820}:51820/udp
+      - ${FZ_PORT:-51820}:${FZ_PORT:-51820}/udp
     env_file:
       # This should contain a list of env vars for configuring Firezone.
       # See https://docs.firezone.dev/reference/env-vars for more info.
