@@ -42,7 +42,7 @@
     path: "{{firezone_dir}}/.env"
   register: env_file
 
-- community.general.docker_compose:
+- community.docker.docker_compose:
     #  project_name: "firezone"
     project_src: "{{firezone_dir}}/"
     state: absent
@@ -64,7 +64,7 @@
     dest: "{{firezone_dir}}/"
     src: "files/conntrack-log"
 
-- community.general.docker_compose:
+- community.docker.docker_compose:
     project_src: "{{firezone_dir}}/"
     build: yes
     pull: yes
@@ -149,7 +149,7 @@
     body_format: json
     body: "{{config_logo}}"
 
-- community.general.docker_compose:
+- community.docker.docker_compose:
     project_src: "{{firezone_dir}}/"
     state: present
     restarted: true
