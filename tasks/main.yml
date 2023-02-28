@@ -137,6 +137,14 @@
       loop: "{{oidc_configs}}"
   when: fz_oidc is defined
 - set_fact:
+    configuration: "{{config}}"
+  when: fz_oidc is not defined
+- set_fact:
+    config:
+      configuration: "{{config}}"
+  when: fz_oidc is not defined
+  
+- set_fact:
     config_logo:
       configuration: "{{config.configuration|ansible.utils.remove_keys(target=['logo'])| combine({'logo': {'url':'https://'+server_url+'/images/logo-text.svg','data':None, 'type':None}})}}"
 - name: Set OIDC configuration
