@@ -40,6 +40,4 @@ galaxy_info:
 
   galaxy_tags: [ ]
 
-  dependencies:
-    - src: geerlingguy.swap
-    - src: geerlingguy.docker
+  dependencies: [ ]

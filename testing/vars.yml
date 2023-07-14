@@ -1,9 +1,7 @@
 ---
-# Firezone admin email
 firezone_admin: fz-admin@localhost
-firezone_redeploy: false
 mgmt_subnet: 172.30.201.0/24
 client_subnet: 172.30.224.0/20
 wireguard_port: 51620
-firezone_dir: /opt/firezone
-firezone_https: true
+firezone_dir: "/opt/firezone"
+firezone_https: false
