@@ -36,7 +36,7 @@ services:
   firezone:
     restart: always
     #lot of breaking changes. need to specify version manually
-    image: firezone/firezone:0.7.11
+    image: firezone/firezone:0.7.30
     ports:
       - ${FZ_PORT:-51820}:${FZ_PORT:-51820}/udp
     env_file:
