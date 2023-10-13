@@ -27,7 +27,10 @@
       state: absent
   when: firezone_redeploy
 
-
+- pip:
+    name: netaddr
+    state: present
+  delegate_to: localhost
 - ansible.builtin.set_fact:
     mgr_ip: "{{ mgmt_subnet | ansible.utils.nthhost(3) }}"
 
@@ -64,7 +67,7 @@
     state: present
     restarted: true
   register: stack_info
-  failed_when: False
+#  failed_when: False
 
 - ansible.builtin.set_fact: firezone_container={{ stack_info.services.firezone.keys() | first }}
 

@@ -1,0 +1,21 @@
+- hosts: testing
+  tasks:
+    - set_fact:
+        mem_available: "{{ (ansible_facts.memory_mb.real.free + ansible_facts.memory_mb.swap.free | default(0)) }}"
+    - include_role:
+        name: geerlingguy.swap
+      vars:
+        swap_file_size_mb: '{{ ansible_facts.memory_mb.swap.free | default(0) + 1024 }}'
+      when: mem_available|int < 768
+    - include_role:
+        name: geerlingguy.docker
+      vars:
+        docker_edition: 'ce'
+        docker_install_compose: false
+        docker_install_compose_plugin: false
+
+- name: Install Firezone
+  hosts: testing
+  roles:
+    - "{{ playbook_dir }}/../../"
+  vars_files: ../vars.yml
