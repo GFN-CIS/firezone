@@ -32,6 +32,8 @@
     name: python3-netaddr
     state: present
   delegate_to: localhost
+  become: yes
+
 - ansible.builtin.set_fact:
     mgr_ip: "{{ mgmt_subnet | ansible.utils.nthhost(3) }}"
 
