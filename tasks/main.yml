@@ -33,6 +33,7 @@
     state: present
     # dirty fix for modern ubuntu installations
     extra_args: --break-system-packages
+    # todo: fix to make it working when controller running in venv
   delegate_to: localhost
 
 - ansible.builtin.set_fact:
