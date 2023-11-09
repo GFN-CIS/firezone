@@ -1,0 +1,5 @@
+all:
+  hosts:
+    testing:
+      ansible_host: 81.163.30.96
+      ansible_ssh_user: root
