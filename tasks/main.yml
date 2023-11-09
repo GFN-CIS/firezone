@@ -28,11 +28,12 @@
         state: absent
   when: firezone_redeploy
 
-- ansible.builtin.apt:
-    name: python3-netaddr
+- pip:
+    name: netaddr
     state: present
+    # dirty fix for modern ubuntu installations
+    extra_args: --break-system-packages
   delegate_to: localhost
-  become: yes
 
 - ansible.builtin.set_fact:
     mgr_ip: "{{ mgmt_subnet | ansible.utils.nthhost(3) }}"
