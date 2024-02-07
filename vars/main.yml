@@ -1,0 +1,3 @@
+fz_client_gateway: "{{ fz_client_subnet | ansible.utils.nthhost(1) }}"
+fz_main_compose_file: "{{ fz_firezone_dir }}/docker-compose.yml"
+fz_api_token:

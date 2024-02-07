@@ -39,6 +39,11 @@ services:
     image: firezone/firezone:0.7.30
     ports:
       - ${FZ_PORT:-51820}:${FZ_PORT:-51820}/udp
+{% if firezone_addon_ports is defined %}
+{% for port in firezone_addon_ports %}
+      - {{port}}
+{% endfor %}
+{% endif %}
     env_file:
       # This should contain a list of env vars for configuring Firezone.
       # See https://docs.firezone.dev/reference/env-vars for more info.
@@ -68,6 +73,7 @@ services:
       timeout: 10s
       retries: 20
       start_period: 10s
+    labels: {{fz_custom_labels}}
   postgres:
     restart: always
     image: postgres:15
@@ -86,17 +92,6 @@ services:
     networks:
       - firezone-network
 
-  conntrack-log:
-    restart: always
-    privileged: true
-    depends_on:
-      firezone:
-        condition: service_healthy
-    build:
-      context: ./conntrack-log
-    pid: "service:firezone"
-    cap_add:
-      - NET_ADMIN
   autoheal:
     restart: always
     image: willfarrell/autoheal
@@ -105,14 +100,11 @@ services:
     environment:
       - "AUTOHEAL_CONTAINER_LABEL=all"
 
-
-# Postgres needs a named volume to prevent perms issues on non-linux platforms
-#volumes:
-#  postgres-data:
-
 networks:
   firezone-network:
     driver: bridge
+{%if fz_mgmt_subnet %}
     ipam:
       config:
-        - subnet: ${FZ_SUBNET:?err}
+        - subnet: {{ fz_mgmt_subnet }}
+{% endif %}
